@@ -47,3 +47,6 @@
   - 停止抓取并查看关键日志:
       - kill "$(cat /tmp/dmesg.pid)"
       - tail -n 200 /tmp/dmesg.log
+
+/////////////////////////////////////////////
+timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/object_detection.yaml
