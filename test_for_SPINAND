@@ -86,3 +86,38 @@ timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/o
 //////////////////////
 modprobe rpmsg_char
 ls /dev/rpmsg_ctrl*（应出现 /dev/rpmsg_ctrl0、ctrl1…）
+
+////////////
+  - 创建输出目录（用内存盘，避免频繁落盘）
+      - mkdir -p /run/edgeai-out
+  - 新建最小配置 configs/linux/decode_only.yaml（注意 null 不要加引号）
+      - 内容示例（分辨率与你的视频一致 1280x768）：
+      - title: Decode Only
+      - inputs:
+          - input0:
+              - source: VIDEO
+              - width: 1280
+              - height: 768
+              - video_path: /opt/edgeai-test-data/videos/video0_1280_768.h264
+      - outputs:
+          - output0:
+              - sink: IMG_DIR
+              - width: 1280
+              - height: 768
+              - output_path: /run/edgeai-out
+      - flows:
+          - flow0:
+              - pipeline: [input0, null, output0]
+              - mosaic:
+                  - [0, 0, 1280, 768]
+
+  - 让应用用对解码器节点（若解码器不在 /dev/video0）
+      - grep -H . /sys/class/video4linux/video*/name
+      - 如果“C&M Wave5 VPU decoder”是 /dev/video1，就先：
+      - mount -o bind /dev/video1 /dev/video0
+
+  - 限时运行，避免无限卡住，并抓内核日志（可选）
+      - dmesg -T -w > /tmp/dmesg.log & echo $! > /tmp/dmesg.pid
+      - timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/decode_only.yaml
+      - kill "$(cat /tmp/dmesg.pid)"; tail -n 100 /tmp/dmesg.log
+      - kill "$(cat /tmp/dmesg.pid)"; tail -n 100 /tmp/dmesg.log
