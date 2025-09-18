@@ -34,3 +34,16 @@
       - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/unbind
       - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/bind
 
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  - 绑定当前解码器到应用用的节点:
+      - mount -o bind /dev/video1 /dev/video0
+  - 开始抓内核日志（后台运行，不占终端）:
+      - dmesg -T -w > /tmp/dmesg.log & echo $! > /tmp/dmesg.pid
+  - 限时跑应用（避免无限等）:
+      - timeout -s INT 20s ./bin/Release/edgeai-tiovx-apps-main configs/linux/object_detection.yaml
+  - 停止抓取并查看关键日志:
+      - kill "$(cat /tmp/dmesg.pid)"
+      - tail -n 200 /tmp/dmesg.log
