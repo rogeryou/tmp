@@ -50,3 +50,18 @@
 
 /////////////////////////////////////////////
 timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/object_detection.yaml
+
+
+///////////////////////////////////
+  - 确保设备没被占用
+      - fuser -v /dev/video0 /dev/video1
+      - 有 PID 就先 kill -9
+  - 复位解码器（驱动为内建时）
+      - 先找驱动目录名：ls /sys/bus/platform/drivers | grep -i wave5
+      - 假设是 wave5-vpu：
+      - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/unbind
+      - sleep 1
+      - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/bind
+  - 重新绑定并限时跑
+      - mount -o bind /dev/video1 /dev/video0
+
