@@ -82,3 +82,7 @@ timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/o
        - dmesg -T -w > /tmp/dmesg.log & echo $! > /tmp/dmesg.pid
        - timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/object_detection.yaml
        - kill "$(cat /tmp/dmesg.pid)"; tail -n 200 /tmp/dmesg.log
+
+//////////////////////
+modprobe rpmsg_char
+ls /dev/rpmsg_ctrl*（应出现 /dev/rpmsg_ctrl0、ctrl1…）
