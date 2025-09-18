@@ -1,0 +1,36 @@
+1.能列出“C&M Wave5 VPU decoder”且 v4l2-ctl 正常 → 驱动加载正常
+2.GStreamer/应用在 10–15 秒超时内能跑起来、不报 QBUF/DQBUF 错误 → 解码功能可用
+3.dmesg 无持续 0x800 或其它致命报错 → 固件/驱动就绪
+
+
+ 1. 确认解码器节点存在且识别正确
+
+  - 列名字：grep -H . /sys/class/video4linux/video*/name
+  - 看到“C&M Wave5 VPU decoder”对应的 /dev/videoX 即为解码器（记住这个 X）。
+  - 可再看能力：v4l2-ctl -d /dev/videoX -D 以及 v4l2-ctl -d /dev/videoX --all
+      - 能正常输出设备信息、支持的格式/控件，说明驱动已加载且节点可用。
+
+  2. 快速跑一条纯解码管线（15 秒超时，避免卡死）
+
+  - 如果有 GStreamer：
+      - timeout -s INT 15s gst-launch-1.0 -e filesrc location=/opt/edgeai-test-data/videos/video0_1280_768.h264 ! h264parse !
+  v4l2h264dec ! fakesink sync=false
+      - 观察：不报错/能跑到 EOS 或持续播放，即“能解码”。报错或立即失败则驱动/固件未就绪或节点不对。
+  - 如果没有 GStreamer，但应用要求用 /dev/video0：
+      - 先映射：mount -o bind /dev/videoX /dev/video0（把 X 换成上一步的解码器节点）
+      - 再限时跑应用：timeout -s INT 15s ./bin/Release/edgeai-tiovx-apps-main configs/linux/object_detection.yaml
+      - 观察：15 秒内进入处理环且不报 VIDIOC_QBUF 失败等，即“能解码”。
+
+  3. 看内核是否报错（仅用一个串口也行）
+
+  - 后台抓日志：
+      - dmesg -T -w > /tmp/dmesg.log & echo $! > /tmp/dmesg.pid
+  - 跑完测试后停止：
+      - kill "$(cat /tmp/dmesg.pid)"; tail -n 100 /tmp/dmesg.log
+  - 判定：
+      - 正常：不出现持续刷屏的 wave5/vdec 错误。
+      - 异常：反复“result not ready: 0x800”或 QBUF/DQBUF 失败，多半是设备被占用、节点不对，或需解绑/重绑：
+      - fuser -v /dev/videoX（查占用）→ kill 占用进程
+      - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/unbind
+      - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/bind
+
