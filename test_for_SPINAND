@@ -65,3 +65,20 @@ timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/o
   - 重新绑定并限时跑
       - mount -o bind /dev/video1 /dev/video0
 
+////////////////////////////////////////////
+做“驱动软复位”（unbind/bind），然后再测：
+      1. 确认解码器的平台设备名
+       - readlink -f /sys/class/video4linux/video1/device
+       - 你应看到路径里包含类似 `30210000.video-codec`，记下这个名字为 DEV。
+       - 找驱动目录名：ls /sys/bus/platform/drivers | grep -i wave5 例如 DRV=wave5-vpu
+  2. 解绑/重绑设备（需 root）
+       - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/unbind
+       - sleep 1
+       - echo 30210000.video-codec > /sys/bus/platform/drivers/wave5-vpu/bind
+  3. 设备节点可能重新编号，重新确认并绑定到应用期望的节点
+       - grep -H . /sys/class/video4linux/video*/name  # 找到 “C&M Wave5 VPU decoder” 对应的 videoX
+       - mount -o bind /dev/videoX /dev/video0        # 用上一步的 X
+  4. 抓 dmesg 并限时跑，便于定位
+       - dmesg -T -w > /tmp/dmesg.log & echo $! > /tmp/dmesg.pid
+       - timeout -s INT -k 5s 20s ./bin/Release/edgeai-tiovx-apps-main -v configs/linux/object_detection.yaml
+       - kill "$(cat /tmp/dmesg.pid)"; tail -n 200 /tmp/dmesg.log
